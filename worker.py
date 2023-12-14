@@ -1,54 +1,51 @@
-from flask import Flask
-from flask import request
+from flask import Flask, request
 import requests
-import os
 import json
+from google.cloud import secretmanager
+
 app = Flask(__name__)
 
-def get_api_key() -> str:
-    secret = os.environ.get("COMPUTE_API_KEY")
-    if secret:
-        return secret
-    else:
-        #local testing
-        with open('.key') as f:
-            return f.read()
-      
+# Function to retrieve the API key from Cloud Secret Manager
+def get_api_key():
+    project_id = "resolute-mote-408120"
+    secret_id = "compute-api-key"
+
+    client = secretmanager.SecretManagerServiceClient()
+    name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = client.access_secret_version(name=name)
+    return response.payload.data.decode("UTF-8")
+
 @app.route("/")
 def hello():
     return "Add workers to the Spark cluster with a POST request to add"
 
 @app.route("/test")
 def test():
-    #return "Test" # testing 
-    return(get_api_key())
+    return get_api_key()
 
-@app.route("/add",methods=['GET','POST'])
+@app.route("/add", methods=['GET', 'POST'])
 def add():
-  if request.method=='GET':
-    return "Use post to add" # replace with form template
-  else:
-    token=get_api_key()
-    ret = addWorker(token,request.form['num'])
-    return ret
-
-
-def addWorker(token, num):
-    with open('payload.json') as p:
-      tdata=json.load(p)
-    tdata['name']='slave'+str(num)
-    data=json.dumps(tdata)
-    url='https://www.googleapis.com/compute/v1/projects/resolute-mote-408120/zones/europe-west1-b/instances'
-
-    headers={"Authorization": "Bearer "+token}
-    resp=requests.post(url,headers=headers, data=data)
-    if resp.status_code==200:     
-      return "Done"
+    if request.method == 'GET':
+        return "Use post to add"  # replace with form template
     else:
-      print(resp.content)
-      return "Error\n"+resp.content.decode('utf-8') + '\n\n\n'+data
+        token = get_api_key()
+        ret = add_worker(token, request.form['num'])
+        return ret
 
+def add_worker(token, num):
+    with open('payload.json') as p:
+        tdata = json.load(p)
+    tdata['name'] = 'slave' + str(num)
+    data = json.dumps(tdata)
+    url = 'https://www.googleapis.com/compute/v1/projects/resolute-mote-408120/zones/europe-west1-b/instances'
 
+    headers = {"Authorization": "Bearer " + token}
+    resp = requests.post(url, headers=headers, data=data)
+    if resp.status_code == 200:
+        return "Done"
+    else:
+        print(resp.content)
+        return "Error\n" + resp.content.decode('utf-8') + '\n\n\n' + data
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0',port='8080')
+    app.run(host='0.0.0.0', port='8080')
