@@ -12,8 +12,14 @@ def get_api_key():
 
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
-    response = client.access_secret_version(name=name)
-    return response.payload.data.decode("UTF-8")
+    
+    try:
+        response = client.access_secret_version(name=name)
+        return response.payload.data.decode("UTF-8")
+    except Exception as e:
+        # Handle exceptions (e.g., Secret version not found)
+        print(f"Error retrieving secret: {e}")
+        return None
 
 @app.route("/")
 def hello():
@@ -29,23 +35,30 @@ def add():
         return "Use post to add"  # replace with form template
     else:
         token = get_api_key()
-        ret = add_worker(token, request.form['num'])
+        if token is None:
+            return "Error: Unable to retrieve API key"
+            
+        num = request.form.get('num')
+        if num is None:
+            return "Error: 'num' parameter missing in form data"
+            
+        ret = add_worker(token, num)
         return ret
 
 def add_worker(token, num):
-    with open('payload.json') as p:
-        tdata = json.load(p)
+    tdata = request.json
     tdata['name'] = 'slave' + str(num)
     data = json.dumps(tdata)
     url = 'https://www.googleapis.com/compute/v1/projects/resolute-mote-408120/zones/europe-west1-b/instances'
-
-    headers = {"Authorization": "Bearer " + token}
-    resp = requests.post(url, headers=headers, data=data)
+    
+    headers = {"Authorization": "Bearer " + token, "Content-Type": "application/json"}
+    resp = requests.post(url, headers=headers, json=tdata)
+    
     if resp.status_code == 200:
         return "Done"
     else:
         print(resp.content)
-        return "Error\n" + resp.content.decode('utf-8') + '\n\n\n' + data
+        return f"Error\n{resp.content.decode('utf-8')}\n\n\n{data}"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port='8080')
