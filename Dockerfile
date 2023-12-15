@@ -3,6 +3,7 @@ FROM python:3.8
 # Set the working directory
 WORKDIR /app
 
+
 # Copy the requirements file into the container
 COPY requirements.txt .
 
@@ -16,4 +17,5 @@ COPY . .
 EXPOSE 8080
 
 # Command to run the application
+RUN pip install -r requirements.txt
 CMD ["python", "worker.py"]
