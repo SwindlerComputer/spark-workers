@@ -1,7 +1,19 @@
-FROM python:3.8-alpine
-COPY ./requirements.txt /app/requirements.txt
+FROM python:3.8
+
+# Set the working directory
 WORKDIR /app
-RUN pip install -r requirements.txt
-COPY . /app
-ENTRYPOINT [ "python" ]
-CMD ["worker.py" ]
+
+# Copy the requirements file into the container
+COPY requirements.txt .
+
+# Install any dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the content of the local src directory to the working directory
+COPY . .
+
+# Expose port 8080
+EXPOSE 8080
+
+# Command to run the application
+CMD ["python", "worker.py"]
